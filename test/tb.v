@@ -119,6 +119,12 @@ module tb;
     // =========================================================================
 
     integer pulses_active, pulses_silent;
+initial begin
+    $dumpfile("tb.fst");
+    $dumpvars(0, tb);
+    #1;
+  end
+
 
     initial begin
         // ----- Reset ---------------------------------------------------------
