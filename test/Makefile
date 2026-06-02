@@ -8,6 +8,11 @@ TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = tt_um_synth.v
 
+# Fallback defaults for Volare if environment variables aren't set by CI
+PDK ?= ihp-sg13g2
+PDK_VERSION ?= cb7daaa8901016cf7c5d272dfa322c41f024931f
+PDK_ROOT ?= $(HOME)/pdk
+
 ifneq ($(GATES),yes)
 
 # RTL simulation:
@@ -23,11 +28,27 @@ COMPILE_ARGS    += -DFUNCTIONAL
 COMPILE_ARGS    += -DUSE_POWER_PINS
 COMPILE_ARGS    += -DSIM
 COMPILE_ARGS    += -DUNIT_DELAY=\#1
-VERILOG_SOURCES += $(PDK_ROOT)/sg13g2/libs.ref/sg13g2_io_sc/verilog/primitives.v
-VERILOG_SOURCES += $(PDK_ROOT)/sg13g2/libs.ref/sg13g2_io_sc/verilog/sg13g2_io_sc.v
 
-# this gets copied in by the GDS action workflow
+# Define the absolute paths to the primitive files
+PRIMITIVES_V = $(PDK_ROOT)/sg13g2/libs.ref/sg13g2_io_sc/verilog/primitives.v
+CELLS_V      = $(PDK_ROOT)/sg13g2/libs.ref/sg13g2_io_sc/verilog/sg13g2_io_sc.v
+
+# Add them to the source list
+VERILOG_SOURCES += $(PRIMITIVES_V)
+VERILOG_SOURCES += $(CELLS_V)
+
+# This gets copied in by the GDS action workflow
 VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
+
+# --- AUTODOWNLOAD TRICK FOR CI ---
+# If we are running a gate simulation and the primitives file doesn't exist,
+# inject a rule dependency to force Volare to fetch the PDK first.
+ifeq ($(wildcard $(PRIMITIVES_V)),)
+$(PRIMITIVES_V):
+	@echo "PDK primitives missing at $(PDK_ROOT). Running volare download..."
+	pip install -q volare
+	volare download --pdk $(PDK) --pdk-root $(PDK_ROOT) $(PDK_VERSION)
+endif
 
 endif
 
