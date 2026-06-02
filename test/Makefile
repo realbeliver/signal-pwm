@@ -3,7 +3,7 @@
 
 # defaults
 SIM ?= icarus
-FST ?= -fst # Use more efficient FST format
+FST ?= -fst
 TOPLEVEL_LANG ?= verilog
 SRC_DIR = $(PWD)/../src
 PROJECT_SOURCES = tt_um_synth.v
@@ -16,18 +16,18 @@ PDK_ROOT ?= $(HOME)/pdk
 ifneq ($(GATES),yes)
 
 # RTL simulation:
-SIM_BUILD				= sim_build/rtl
+SIM_BUILD = sim_build/rtl
 VERILOG_SOURCES += $(addprefix $(SRC_DIR)/,$(PROJECT_SOURCES))
 
 else
 
 # Gate level simulation:
-SIM_BUILD				= sim_build/gl
-COMPILE_ARGS    += -DGL_TEST
-COMPILE_ARGS    += -DFUNCTIONAL
-COMPILE_ARGS    += -DUSE_POWER_PINS
-COMPILE_ARGS    += -DSIM
-COMPILE_ARGS    += -DUNIT_DELAY=\#1
+SIM_BUILD = sim_build/gl
+COMPILE_ARGS += -DGL_TEST
+COMPILE_ARGS += -DFUNCTIONAL
+COMPILE_ARGS += -DUSE_POWER_PINS
+COMPILE_ARGS += -DSIM
+COMPILE_ARGS += -DUNIT_DELAY=\#1
 
 # Define the absolute paths to the primitive files
 PRIMITIVES_V = $(PDK_ROOT)/sg13g2/libs.ref/sg13g2_io_sc/verilog/primitives.v
@@ -40,27 +40,25 @@ VERILOG_SOURCES += $(CELLS_V)
 # This gets copied in by the GDS action workflow
 VERILOG_SOURCES += $(PWD)/gate_level_netlist.v
 
-# --- AUTODOWNLOAD TRICK FOR CI ---
-# If we are running a gate simulation and the primitives file doesn't exist,
-# inject a rule dependency to force Volare to fetch the PDK first.
+# Auto-install PDK for CI if missing
 ifeq ($(wildcard $(PRIMITIVES_V)),)
 $(PRIMITIVES_V):
-	@echo "PDK primitives missing at $(PDK_ROOT). Running volare download..."
-	pip install -q volare
-	volare download --pdk $(PDK) --pdk-root $(PDK_ROOT) $(PDK_VERSION)
+	@echo "PDK primitives missing at $(PDK_ROOT). Installing/enabling $(PDK) via volare..."
+	pip install -q --upgrade --no-cache-dir volare
+	volare enable --pdk $(PDK) --pdk-root $(PDK_ROOT) $(PDK_VERSION)
 endif
 
 endif
 
-# Allow sharing configuration between design and testbench via `include`:
-COMPILE_ARGS 		+= -I$(SRC_DIR)
-COMPILE_ARGS 		+= -DCOCOTB_SIM
+# Allow sharing configuration between design and testbench via include
+COMPILE_ARGS += -I$(SRC_DIR)
+COMPILE_ARGS += -DCOCOTB_SIM
 
-# Include the testbench sources:
+# Include the testbench sources
 VERILOG_SOURCES += $(PWD)/tb.v
 TOPLEVEL = tb
 
-# List test modules to run, separated by commas and without the .py suffix:
+# List test modules to run, separated by commas and without the .py suffix
 COCOTB_TEST_MODULES = test
 
 # include cocotb's make rules to take care of the simulator setup
